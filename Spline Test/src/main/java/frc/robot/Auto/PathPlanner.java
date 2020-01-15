@@ -21,8 +21,8 @@ public class PathPlanner {
 
 	//smooth velocity
 	public double[][] smoothCenterVelocity;
-	public double[][] smoothRightVelocity;
-	public double[][] smoothLeftVelocity;
+	public static double[][] smoothRightVelocity;
+	public static double[][] smoothLeftVelocity;
 
 	//accumulated heading
 	public double[][] heading;

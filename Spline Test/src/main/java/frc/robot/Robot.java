@@ -34,8 +34,7 @@ public class Robot extends TimedRobot {
 
   private DifferentialDrive diffDrive;
 
-  private Joystick leftStick;
-  private Joystick rightStick;
+  private Joystick driveController;
   
   private CANSparkMax leftFront;
   private CANSparkMax leftBack;
@@ -54,21 +53,21 @@ public class Robot extends TimedRobot {
   @Override
   public void robotInit() {
 
-    rightFront = new CANSparkMax(1, MotorType.kBrushless);
-    rightBack = new CANSparkMax(2, MotorType.kBrushless);
+    rightFront = new CANSparkMax(2, MotorType.kBrushless);
+    rightBack = new CANSparkMax(6, MotorType.kBrushless);
     leftFront = new CANSparkMax(3, MotorType.kBrushless);
     leftBack = new CANSparkMax(4, MotorType.kBrushless);
 
     rightBack.follow(rightFront);
     leftBack.follow(leftFront);
 
-    rightFront.setInverted(true);
-    leftFront.setInverted(true);
+    // rightFront.setInverted(true);
+    // leftFront.setInverted(true);
 
-    diffDrive = new DifferentialDrive(rightFront, leftFront);
+    diffDrive = new DifferentialDrive(leftFront, righ tFront);
+    diffDrive.setSafetyEnabled(false);
 
-    leftStick = new Joystick(0);
-    rightStick = new Joystick(0);
+    driveController = new Joystick(0);
 
     chooser.setDefaultOption("Default Auto", kDefaultAuto);
     chooser.addOption("My Auto", kCustomAuto);
@@ -128,22 +127,27 @@ public class Robot extends TimedRobot {
 
     Robot.accumulator += timer.getDT();
 
-    double[][] rightVel = {};
-    final PathPlanner right = new PathPlanner(rightVel);
+    // double[][] rightVel = {};
+    // final PathPlanner right = new PathPlanner(rightVel);
 
-    double[][] leftVel = {};
-    final PathPlanner left = new PathPlanner(leftVel);
+    // double[][] leftVel = {};
+    // // new double[][2];
+    // final PathPlanner left = new PathPlanner(leftVel);
 
     if (accumulator - 0.1 <= 0.005) {
       Robot.counter++;
 
-      // sets right side velocities
-      rightVel = right.getSmoothRightVelocity();
-      rightFront.set(rightVel[counter][1]); 
+      // // sets right side velocities
+      // rightVel = right.getSmoothRightVelocity();
+      // // rightFront.set(rightVel[counter][1]); 
 
-      // sets left side velocities
-      leftVel = left.getLeftVelocity();
-      leftFront.set(leftVel[counter][1]);
+      // // sets left side velocities
+      // leftVel = left.getLeftVelocity();
+      // // leftFront.set(leftVel[counter][1]);
+
+      diffDrive.tankDrive(PathPlanner.smoothLeftVelocity[counter][1], PathPlanner.smoothRightVelocity[counter][1]);
+
+      // diffDrive.tankDrive(leftVel[counter][1], rightVel[counter][1]);
 
 
       accumulator = 0.0;
@@ -158,7 +162,7 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
 
-    diffDrive.arcadeDrive(leftStick.getRawAxis(1), rightStick.getRawAxis(4));
+    diffDrive.arcadeDrive(-driveController.getRawAxis(1), driveController.getRawAxis(4));
 
   
   }
