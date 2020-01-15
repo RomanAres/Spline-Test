@@ -134,12 +134,14 @@ public class Robot extends TimedRobot {
     double[][] leftVel = {};
     final PathPlanner left = new PathPlanner(leftVel);
 
-    if (accumulator - 0.1 == 0) {
+    if (accumulator - 0.1 <= 0.005) {
       Robot.counter++;
 
+      // sets right side velocities
       rightVel = right.getSmoothRightVelocity();
-      rightFront.set(rightVel[counter][1]);       // <--- Right here Mari!!!
+      rightFront.set(rightVel[counter][1]); 
 
+      // sets left side velocities
       leftVel = left.getLeftVelocity();
       leftFront.set(leftVel[counter][1]);
 
