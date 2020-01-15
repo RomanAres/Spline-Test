@@ -16,6 +16,9 @@ import edu.wpi.first.wpilibj.Joystick;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
+import frc.robot.Auto.Timer;
+import frc.robot.Auto.PathPlanner;
+
 /**
  * The VM is configured to automatically run this class, and to call the
  * functions corresponding to each mode, as described in the TimedRobot
@@ -23,19 +26,26 @@ import com.revrobotics.CANSparkMaxLowLevel.MotorType;
  * creating this project, you must also update the build.gradle file in the
  * project.
  */
+
 public class Robot extends TimedRobot {
   private static final String kDefaultAuto = "Default";
   private static final String kCustomAuto = "My Auto";
-  private String m_autoSelected;
-  private final SendableChooser<String> m_chooser = new SendableChooser<>();
+  private final SendableChooser<String> chooser = new SendableChooser<>();
 
   private DifferentialDrive diffDrive;
+
   private Joystick leftStick;
   private Joystick rightStick;
+  
   private CANSparkMax leftFront;
   private CANSparkMax leftBack;
   private CANSparkMax rightFront;
   private CANSparkMax rightBack;
+
+  private Timer timer = new Timer();
+
+  private static double accumulator = 0.0;
+  private static int counter = 0;
 
   /**
    * This function is run when the robot is first started up and should be
@@ -52,14 +62,17 @@ public class Robot extends TimedRobot {
     rightBack.follow(rightFront);
     leftBack.follow(leftFront);
 
+    rightFront.setInverted(true);
+    leftFront.setInverted(true);
+
     diffDrive = new DifferentialDrive(rightFront, leftFront);
 
     leftStick = new Joystick(0);
-    rightStick = new Joystick(1);
+    rightStick = new Joystick(0);
 
-    m_chooser.setDefaultOption("Default Auto", kDefaultAuto);
-    m_chooser.addOption("My Auto", kCustomAuto);
-    SmartDashboard.putData("Auto choices", m_chooser);
+    chooser.setDefaultOption("Default Auto", kDefaultAuto);
+    chooser.addOption("My Auto", kCustomAuto);
+    SmartDashboard.putData("Auto choices", chooser);
   }
 
   /**
@@ -87,9 +100,24 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousInit() {
-    m_autoSelected = m_chooser.getSelected();
-    // m_autoSelected = SmartDashboard.getString("Auto Selector", kDefaultAuto);
-    System.out.println("Auto selected: " + m_autoSelected);
+    //m_autoSelected = chooser.getSelected();
+
+    double[][] waypoints = new double[][] {
+        {0,1},
+        {1,3},
+        {0,5},
+        {1,7},
+        {0,9},
+        {1,11}
+    };
+
+    double totalTime = 8; //seconds
+		double timeStep = 0.1; //period of control loop on Rio, seconds
+    double robotTrackWidth = 2; //distance between left and right wheels, feet
+    
+    final PathPlanner path = new PathPlanner(waypoints);
+    path.calculate(totalTime, timeStep, robotTrackWidth);
+    
   }
 
   /**
@@ -97,15 +125,29 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void autonomousPeriodic() {
-    switch (m_autoSelected) {
-      case kCustomAuto:
-        // Put custom auto code here
-        break;
-      case kDefaultAuto:
-      default:
-        // Put default auto code here
-        break;
+
+    Robot.accumulator += timer.getDT();
+
+    double[][] rightVel = {};
+    final PathPlanner right = new PathPlanner(rightVel);
+
+    double[][] leftVel = {};
+    final PathPlanner left = new PathPlanner(leftVel);
+
+    if (accumulator - 0.1 == 0) {
+      Robot.counter++;
+
+      rightVel = right.getSmoothRightVelocity();
+      rightFront.set(rightVel[counter][1]);       // <--- Right here Mari!!!
+
+      leftVel = left.getLeftVelocity();
+      leftFront.set(leftVel[counter][1]);
+
+
+      accumulator = 0.0;
     }
+    
+    
   }
 
   /**
@@ -116,6 +158,7 @@ public class Robot extends TimedRobot {
 
     diffDrive.arcadeDrive(leftStick.getRawAxis(1), rightStick.getRawAxis(4));
 
+  
   }
 
   /**
