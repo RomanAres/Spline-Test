@@ -46,6 +46,12 @@ public class Robot extends TimedRobot {
   private static double accumulator = 0.0;
   private static int counter = 0;
 
+  private boolean isAutoFinished = false; // auto flag for spline
+  
+  private double totalTime = 15; //seconds
+  private double timeStep = 0.1; //period of control loop on Rio, seconds
+  private double robotTrackWidth = 2; //distance between left and right wheels, feet
+
   /**
    * This function is run when the robot is first started up and should be
    * used for any initialization code.
@@ -64,7 +70,7 @@ public class Robot extends TimedRobot {
     // rightFront.setInverted(true);
     // leftFront.setInverted(true);
 
-    diffDrive = new DifferentialDrive(leftFront, righ tFront);
+    diffDrive = new DifferentialDrive(leftFront, rightFront);
     diffDrive.setSafetyEnabled(false);
 
     driveController = new Joystick(0);
@@ -101,18 +107,14 @@ public class Robot extends TimedRobot {
   public void autonomousInit() {
     //m_autoSelected = chooser.getSelected();
 
+    isAutoFinished = false;
+
     double[][] waypoints = new double[][] {
         {0,1},
         {1,3},
         {0,5},
-        {1,7},
-        {0,9},
-        {1,11}
+        {1,7}
     };
-
-    double totalTime = 8; //seconds
-		double timeStep = 0.1; //period of control loop on Rio, seconds
-    double robotTrackWidth = 2; //distance between left and right wheels, feet
     
     final PathPlanner path = new PathPlanner(waypoints);
     path.calculate(totalTime, timeStep, robotTrackWidth);
@@ -126,32 +128,19 @@ public class Robot extends TimedRobot {
   public void autonomousPeriodic() {
 
     Robot.accumulator += timer.getDT();
-
-    // double[][] rightVel = {};
-    // final PathPlanner right = new PathPlanner(rightVel);
-
-    // double[][] leftVel = {};
-    // // new double[][2];
-    // final PathPlanner left = new PathPlanner(leftVel);
-
-    if (accumulator - 0.1 <= 0.005) {
-      Robot.counter++;
-
-      // // sets right side velocities
-      // rightVel = right.getSmoothRightVelocity();
-      // // rightFront.set(rightVel[counter][1]); 
-
-      // // sets left side velocities
-      // leftVel = left.getLeftVelocity();
-      // // leftFront.set(leftVel[counter][1]);
+      //                                       some arbitrary number close to 0
+    if (!isAutoFinished && (accumulator - timeStep <= 0.005)) {
 
       diffDrive.tankDrive(PathPlanner.smoothLeftVelocity[counter][1], PathPlanner.smoothRightVelocity[counter][1]);
+      System.out.println(PathPlanner.smoothLeftVelocity[counter][1] + "  " + PathPlanner.smoothLeftVelocity[counter][1]);
 
-      // diffDrive.tankDrive(leftVel[counter][1], rightVel[counter][1]);
-
-
+      Robot.counter++;
       accumulator = 0.0;
-    }
+
+      if (counter == PathPlanner.smoothLeftVelocity.length) {
+        isAutoFinished = true;
+      }
+    } 
     
     
   }
