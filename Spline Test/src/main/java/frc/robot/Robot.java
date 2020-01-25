@@ -14,7 +14,10 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.Joystick;
 
 import com.revrobotics.CANSparkMax;
+import com.revrobotics.ControlType;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
+import com.revrobotics.CANEncoder;
+import com.revrobotics.CANPIDController;
 
 import frc.robot.Auto.Timer;
 import frc.robot.Auto.PathPlanner;
@@ -41,6 +44,12 @@ public class Robot extends TimedRobot {
   private CANSparkMax rightFront;
   private CANSparkMax rightBack;
 
+  private CANEncoder leftEncoder;
+  private CANEncoder rightEncoder;
+
+  private CANPIDController leftPidController;
+  private CANPIDController rightPidController;
+
   private Timer timer = new Timer();
 
   private static double accumulator = 0.0;
@@ -48,9 +57,11 @@ public class Robot extends TimedRobot {
 
   private boolean isAutoFinished = false; // auto flag for spline
   
-  private double totalTime = 15; //seconds
-  private double timeStep = 0.1; //period of control loop on Rio, seconds
+  private double totalTime = 20; //seconds
+  private double timeStep = 0.02; //period of control loop on motor controller, seconds
   private double robotTrackWidth = 2; //distance between left and right wheels, feet
+
+  public double kP, kI, kD, kIz, kFF, kMaxOutput, kMinOutput, maxRPM;
 
   /**
    * This function is run when the robot is first started up and should be
@@ -60,7 +71,7 @@ public class Robot extends TimedRobot {
   public void robotInit() {
 
     rightFront = new CANSparkMax(2, MotorType.kBrushless);
-    rightBack = new CANSparkMax(6, MotorType.kBrushless);
+    rightBack = new CANSparkMax(5, MotorType.kBrushless);
     leftFront = new CANSparkMax(3, MotorType.kBrushless);
     leftBack = new CANSparkMax(4, MotorType.kBrushless);
 
@@ -74,6 +85,47 @@ public class Robot extends TimedRobot {
     diffDrive.setSafetyEnabled(false);
 
     driveController = new Joystick(0);
+
+    leftPidController = leftFront.getPIDController();
+    rightPidController = rightFront.getPIDController();
+
+    leftEncoder = leftFront.getEncoder();
+    rightEncoder = rightFront.getEncoder();
+
+    // PID coefficients
+    kP = 0.5;  //5e-5; 
+    kI = 0.5;        //1e-6;
+    kD = 0; 
+    kIz = 0; 
+    kFF = 0; 
+    kMaxOutput = 1; 
+    kMinOutput = -1;
+    maxRPM = 5700;
+
+    // left PIDS sets
+    leftPidController.setP(kP);
+    leftPidController.setI(kI);
+    leftPidController.setD(kD);
+    leftPidController.setIZone(kIz);
+    leftPidController.setFF(kFF);
+    leftPidController.setOutputRange(kMinOutput, kMaxOutput);
+
+    // right PID sets
+    rightPidController.setP(kP);
+    rightPidController.setI(kI);
+    rightPidController.setD(kD);
+    rightPidController.setIZone(kIz);
+    rightPidController.setFF(kFF);
+    rightPidController.setOutputRange(kMinOutput, kMaxOutput);
+    
+    // display PID coefficients on SmartDashboard
+    SmartDashboard.putNumber("P Gain", kP);
+    SmartDashboard.putNumber("I Gain", kI);
+    SmartDashboard.putNumber("D Gain", kD);
+    SmartDashboard.putNumber("I Zone", kIz);
+    SmartDashboard.putNumber("Feed Forward", kFF);
+    SmartDashboard.putNumber("Max Output", kMaxOutput);
+    SmartDashboard.putNumber("Min Output", kMinOutput);
 
     chooser.setDefaultOption("Default Auto", kDefaultAuto);
     chooser.addOption("My Auto", kCustomAuto);
@@ -90,6 +142,10 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotPeriodic() {
+
+    SmartDashboard.putNumber("Left Encoder Velocity", leftEncoder.getVelocity());
+    SmartDashboard.putNumber("Right Encoder Velocity", rightEncoder.getVelocity());
+    
   }
 
   /**
@@ -107,16 +163,39 @@ public class Robot extends TimedRobot {
   public void autonomousInit() {
     //m_autoSelected = chooser.getSelected();
 
+    timer.reset();
+
     isAutoFinished = false;
 
+    counter = 0;
+
     double[][] waypoints = new double[][] {
-        {0,1},
-        {1,3},
-        {0,5},
-        {1,7}
+        {0,0},
+        {-2,2},
+        {0,4},
+        {2,2},
+        {0,0}
+    };
+
+    double[][] pathPoints = new double[][] {
+        {-4.5,2.5},
+        {-6,6},
+        {-4.5,9.5},
+        {0,12},
+        {4.5,9.5},
+        {6,6},
+        {4.5,2.5},
+        {0,0}
+    };
+
+    double[][] straightLine = new double[][] {
+        {0,0},
+        {0,2},
+        {0,4},
+        {0,6}
     };
     
-    final PathPlanner path = new PathPlanner(waypoints);
+    final PathPlanner path = new PathPlanner(straightLine);
     path.calculate(totalTime, timeStep, robotTrackWidth);
     
   }
@@ -128,20 +207,32 @@ public class Robot extends TimedRobot {
   public void autonomousPeriodic() {
 
     Robot.accumulator += timer.getDT();
-      //                                       some arbitrary number close to 0
-    if (!isAutoFinished && (accumulator - timeStep <= 0.005)) {
+    // System.out.println(timer.getDT());
+    
+    if (!isAutoFinished && (accumulator >= timeStep)) {
+      // System.out.printf("\n--------------------\nCounter: %d \nLeft Velocity: %f \nRight Velocity: %f", 
+      //   counter, PathPlanner.smoothLeftVelocity[counter][1], PathPlanner.smoothRightVelocity[counter][1]);
+    
+      // leftPidController.setReference(PathPlanner.smoothLeftVelocity[counter][1], ControlType.kVelocity);
+      // rightPidController.setReference(PathPlanner.smoothRightVelocity[counter][1], ControlType.kVelocity);
 
-      diffDrive.tankDrive(PathPlanner.smoothLeftVelocity[counter][1], PathPlanner.smoothRightVelocity[counter][1]);
-      System.out.println(PathPlanner.smoothLeftVelocity[counter][1] + "  " + PathPlanner.smoothLeftVelocity[counter][1]);
+      leftPidController.setReference(0.2, ControlType.kVelocity);
+      rightPidController.setReference(0.2, ControlType.kVelocity);
+
 
       Robot.counter++;
       accumulator = 0.0;
 
       if (counter == PathPlanner.smoothLeftVelocity.length) {
         isAutoFinished = true;
+
+        leftPidController.setReference(0, ControlType.kVelocity);
+        rightPidController.setReference(0, ControlType.kVelocity);
+
       }
     } 
     
+    timer.update();
     
   }
 

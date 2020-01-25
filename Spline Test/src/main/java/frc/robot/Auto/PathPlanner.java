@@ -75,13 +75,27 @@ public class PathPlanner {
 			temp[i] = new double[arr[i].length];
 
 			//Copy Contents
-			for(int j=0; j<arr[i].length; j++)
+			for(int j=0; j<arr[i].length; j++) {
 				temp[i][j] = arr[i][j];
+			}
 		}
 
 		return temp;
 
-    }
+	}
+	
+	public double[][] translateArray(double[][] array) {
+		double [][] temporary = new double[array.length][array[1].length];
+
+		for (int i = 0; i < array.length - 1; i++) {
+			for (int j = 0; j < array[1].length - 1; j++) {
+				temporary[i][j] = array[i][j];
+			}
+			temporary[i][0] = -array[i][0];
+		}
+
+		return temporary;
+	}
     
     public double[][] inject(double[][] orig, int numToInject) {
 		double morePoints[][];
@@ -129,13 +143,14 @@ public class PathPlanner {
 		while(change >= tolerance)
 		{
 			change = 0.0;
-			for(int i=1; i<path.length-1; i++)
+			for(int i=1; i<path.length-1; i++){
 				for(int j=0; j<path[i].length; j++)
 				{
 					double aux = newPath[i][j];
 					newPath[i][j] += weight_data * (path[i][j] - newPath[i][j]) + weight_smooth * (newPath[i-1][j] + newPath[i+1][j] - (2.0 * newPath[i][j]));
 					change += Math.abs(aux - newPath[i][j]);	
-				}					
+				}	
+			}				
 		}
 
 		return newPath;
@@ -156,10 +171,11 @@ public class PathPlanner {
 			//calculate direction
 			double vector1 = Math.atan2((path[i][1]-path[i-1][1]),path[i][0]-path[i-1][0]);
 			double vector2 = Math.atan2((path[i+1][1]-path[i][1]),path[i+1][0]-path[i][0]);
-
+       
 			//determine if both vectors have a change in direction
-			if(Math.abs(vector2-vector1)>=0.01)
-				li.add(path[i]);					
+			if(Math.abs(vector2-vector1)>=0.01) {
+				li.add(path[i]);				
+			}  	
 		}
 
 		//save last
@@ -290,8 +306,8 @@ public class PathPlanner {
 
 			for (int i=4; i<=6; i++) {
 				for (int j=1; j<=8; j++) {
-					pointsFirst = i *(numNodeOnlyPoints-1) + numNodeOnlyPoints;
-					pointsTotal = (j*(pointsFirst-1)+pointsFirst);
+					pointsFirst = (i * (numNodeOnlyPoints - 1) + numNodeOnlyPoints);
+					pointsTotal = (j * (pointsFirst - 1) + pointsFirst);
 
 					if(pointsTotal<=totalPoints && pointsTotal>oldPointsTotal) {
 						first=i;
@@ -332,7 +348,7 @@ public class PathPlanner {
 		return ret;
 	}
 
-	// calculates left and right wheel paths based on the robot track width
+	// calculates left and right smooth wheel paths based on the robot track width
 	public void leftRight(double[][] smoothPath, double robotTrackWidth) {
 
 		double[][] leftPath = new double[smoothPath.length][2];
@@ -351,7 +367,7 @@ public class PathPlanner {
 			leftPath[i][0] = (robotTrackWidth/2 * Math.cos(gradient[i][1] + Math.PI/2)) + smoothPath[i][0];
 			leftPath[i][1] = (robotTrackWidth/2 * Math.sin(gradient[i][1] + Math.PI/2)) + smoothPath[i][1];
 
-			rightPath[i][0] = robotTrackWidth/2 * Math.cos(gradient[i][1] - Math.PI/2) + smoothPath[i][0];
+			rightPath[i][0] = (robotTrackWidth/2 * Math.cos(gradient[i][1] - Math.PI/2)) + smoothPath[i][0];
 			rightPath[i][1] = robotTrackWidth/2 * Math.sin(gradient[i][1] - Math.PI/2) + smoothPath[i][1];
 
 			//convert to degrees 0 to 360 where 0 degrees is +X - axis, accumulated to aline with WPI sensor
@@ -436,6 +452,9 @@ public class PathPlanner {
 	//  all you need to call is .smoothVelocity[0] and .smoothVelocity[1] to the left and
 	//  right motor controllers
 	public void calculate(double totalTime, double timeStep, double robotTrackWidth) {
+		// translates original path over y-axis
+		//double[][] transPath = translateArray(origPath);
+
 		//first find only direction changing nodes
 		nodeOnlyPath = nodeOnlyWayPoints(origPath);
 
